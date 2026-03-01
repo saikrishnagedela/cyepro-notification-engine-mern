@@ -11,22 +11,23 @@ app.use(cors());
 app.use(express.json());
 
 /* ===============================
-   ROOT ROUTE (FIXES Cannot GET /)
-================================*/
+   MongoDB Connection
+================================ */
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
+  .catch((err) => console.log("❌ MongoDB Error:", err.message));
+
+/* ===============================
+   ROOT HEALTH ROUTE
+================================ */
 app.get("/", (req, res) => {
   res.send("✅ Cypro Notification Engine Backend Running");
 });
 
 /* ===============================
-   HEALTH CHECK
-================================*/
-app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
-});
-
-/* ===============================
-   STATS API
-================================*/
+   STATS ENDPOINT
+================================ */
 app.get("/stats", async (req, res) => {
   try {
     const total = await Event.countDocuments();
@@ -36,32 +37,37 @@ app.get("/stats", async (req, res) => {
 
     res.json({ total, now, later, never });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Stats failed" });
   }
 });
 
 /* ===============================
-   CREATE EVENT
-================================*/
+   CLASSIFICATION LOGIC
+================================ */
+function classifyEvent(priority) {
+  if (priority === "critical") return "NOW";
+  if (priority === "medium") return "LATER";
+  return "NEVER";
+}
+
+/* ===============================
+   EVENTS API
+================================ */
 app.post("/events", async (req, res) => {
   try {
     const { user_id, event_type, message, priority_hint } = req.body;
 
-    let classification = "LATER";
+    const classification = classifyEvent(priority_hint);
 
-    if (priority_hint === "critical") classification = "NOW";
-    else if (priority_hint === "low") classification = "LATER";
-    else classification = "NEVER";
-
-    const event = new Event({
+    const event = await Event.create({
       user_id,
       event_type,
       message,
+      source: "unknown",
       priority_hint,
+      channel: "push",
       classification,
     });
-
-    await event.save();
 
     res.json({
       success: true,
@@ -69,24 +75,17 @@ app.post("/events", async (req, res) => {
       data: event,
     });
   } catch (err) {
+    console.log(err);
     res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Failed to process event",
     });
   }
 });
 
 /* ===============================
-   DATABASE CONNECT
-================================*/
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => console.log("❌ MongoDB Error:", err));
-
-/* ===============================
    SERVER START
-================================*/
+================================ */
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
