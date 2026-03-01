@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -10,7 +11,14 @@ const app = express();
 /* ===============================
    MIDDLEWARE
 ================================ */
-app.use(cors());
+app.use(
+  cors({
+    origin: "*", // allow Vercel frontend
+    methods: ["GET", "POST"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 /* ===============================
@@ -19,7 +27,10 @@ app.use(express.json());
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => console.log("❌ MongoDB Error:", err.message));
+  .catch((err) => {
+    console.error("❌ MongoDB Error:", err.message);
+    process.exit(1);
+  });
 
 /* ===============================
    ROOT ROUTE
@@ -29,7 +40,7 @@ app.get("/", (req, res) => {
 });
 
 /* ===============================
-   HEALTH CHECK ROUTE
+   HEALTH CHECK
 ================================ */
 app.get("/health", (req, res) => {
   res.json({
@@ -48,22 +59,18 @@ app.get("/stats", async (req, res) => {
     const later = await Event.countDocuments({ classification: "LATER" });
     const never = await Event.countDocuments({ classification: "NEVER" });
 
-    res.json({
-      total,
-      now,
-      later,
-      never,
-    });
+    res.json({ total, now, later, never });
   } catch (err) {
-    console.error(err);
+    console.error("STATS ERROR:", err);
     res.status(500).json({
-      error: "Stats fetch failed",
+      success: false,
+      message: "Stats fetch failed",
     });
   }
 });
 
 /* ===============================
-   CLASSIFICATION LOGIC
+   CLASSIFICATION FUNCTION
 ================================ */
 function classifyEvent(priority) {
   if (priority === "critical") return "NOW";
@@ -87,10 +94,7 @@ app.post("/events", async (req, res) => {
 
     const safePriority = priority_hint || "low";
 
-    let classification = "NEVER";
-    if (safePriority === "critical") classification = "NOW";
-    else if (safePriority === "medium") classification = "LATER";
-    else classification = "LATER";
+    const classification = classifyEvent(safePriority);
 
     const event = await Event.create({
       user_id,
@@ -102,6 +106,11 @@ app.post("/events", async (req, res) => {
       classification,
     });
 
+    console.log(
+      `📩 Event Saved (${classification}):`,
+      event._id.toString()
+    );
+
     res.json({
       success: true,
       classification,
@@ -109,9 +118,19 @@ app.post("/events", async (req, res) => {
     });
   } catch (err) {
     console.error("EVENT ERROR:", err);
+
     res.status(500).json({
       success: false,
       message: "Failed to process event",
     });
   }
+});
+
+/* ===============================
+   SERVER START (RENDER SAFE)
+================================ */
+const PORT = process.env.PORT;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
