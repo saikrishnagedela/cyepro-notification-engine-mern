@@ -11,64 +11,135 @@ export default function Simulator() {
 
   const handleClassify = async () => {
     try {
-      const response = await fetch(
+      setResult("Processing...");
+
+      const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/classify`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId,
-            type,
-            message,
-            priority,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, type, message, priority }),
         }
       );
 
-      const data = await response.json();
-
-      if (data.success) {
-        setResult(data.classification);
-      } else {
-        setResult("Server Error");
-      }
+      const data = await res.json();
+      setResult(data.classification || "No result");
     } catch (error) {
-      console.error(error);
       setResult("Server Error");
     }
   };
 
   return (
-    <div>
-      <input
-        placeholder="User ID"
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-      />
-      <input
-        placeholder="Type"
-        value={type}
-        onChange={(e) => setType(e.target.value)}
-      />
-      <textarea
-        placeholder="Message"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      />
-      <select
-        value={priority}
-        onChange={(e) => setPriority(e.target.value)}
-      >
-        <option>Low</option>
-        <option>Medium</option>
-        <option>High</option>
-      </select>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>Notification Simulator</h2>
 
-      <button onClick={handleClassify}>Classify</button>
+        <div style={styles.row}>
+          <input
+            style={styles.input}
+            placeholder="User ID"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+          />
 
-      <h3>Classification: {result}</h3>
+          <input
+            style={styles.input}
+            placeholder="Type (promo, alert...)"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          />
+        </div>
+
+        <textarea
+          style={styles.textarea}
+          placeholder="Enter message..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+
+        <div style={styles.row}>
+          <select
+            style={styles.select}
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+          >
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+          </select>
+
+          <button style={styles.button} onClick={handleClassify}>
+            Classify
+          </button>
+        </div>
+
+        <h3 style={styles.result}>
+          Classification: <span>{result}</span>
+        </h3>
+      </div>
     </div>
   );
 }
+
+const styles: any = {
+  container: {
+    display: "flex",
+    justifyContent: "center",
+    paddingTop: "40px",
+  },
+  card: {
+    width: "500px",
+    background: "#0f172a",
+    padding: "30px",
+    borderRadius: "12px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+  },
+  title: {
+    marginBottom: "20px",
+    textAlign: "center",
+  },
+  row: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "15px",
+  },
+  input: {
+    flex: 1,
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+    background: "#1e293b",
+    color: "white",
+  },
+  textarea: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+    background: "#1e293b",
+    color: "white",
+    minHeight: "80px",
+    marginBottom: "15px",
+  },
+  select: {
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+    background: "#1e293b",
+    color: "white",
+  },
+  button: {
+    flex: 1,
+    padding: "10px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#3b82f6",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  result: {
+    marginTop: "20px",
+    textAlign: "center",
+  },
+};
