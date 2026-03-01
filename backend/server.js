@@ -85,19 +85,22 @@ app.post("/events", async (req, res) => {
       });
     }
 
-    const classification = classifyEvent(priority_hint);
+    const safePriority = priority_hint || "low";
+
+    let classification = "NEVER";
+    if (safePriority === "critical") classification = "NOW";
+    else if (safePriority === "medium") classification = "LATER";
+    else classification = "LATER";
 
     const event = await Event.create({
       user_id,
       event_type,
       message,
       source: "unknown",
-      priority_hint,
+      priority_hint: safePriority,
       channel: "push",
       classification,
     });
-
-    console.log(`📩 Event Saved (${classification}):`, event._id);
 
     res.json({
       success: true,
@@ -105,19 +108,10 @@ app.post("/events", async (req, res) => {
       data: event,
     });
   } catch (err) {
-    console.error(err);
+    console.error("EVENT ERROR:", err);
     res.status(500).json({
       success: false,
       message: "Failed to process event",
     });
   }
-});
-
-/* ===============================
-   SERVER START
-================================ */
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
 });
