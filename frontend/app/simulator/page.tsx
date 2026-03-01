@@ -4,95 +4,71 @@ import { useState } from "react";
 
 export default function Simulator() {
   const [userId, setUserId] = useState("");
-  const [eventType, setEventType] = useState("");
+  const [type, setType] = useState("");
   const [message, setMessage] = useState("");
-  const [priorityHint, setPriorityHint] = useState("low");
+  const [priority, setPriority] = useState("Low");
   const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!userId || !eventType || !message) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    setLoading(true);
-    setResult("");
-
+  const handleClassify = async () => {
     try {
-      const res = await fetch("http://localhost:5000/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          event_type: eventType,
-          message,
-          priority_hint: priorityHint,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/classify`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId,
+            type,
+            message,
+            priority,
+          }),
+        }
+      );
 
-      const data = await res.json();
-      setResult(data.classification || "Error");
-    } catch {
+      const data = await response.json();
+
+      if (data.success) {
+        setResult(data.classification);
+      } else {
+        setResult("Server Error");
+      }
+    } catch (error) {
+      console.error(error);
       setResult("Server Error");
     }
-
-    setLoading(false);
   };
 
-  const badgeColor =
-    result === "NOW"
-      ? "badge-now"
-      : result === "LATER"
-      ? "badge-later"
-      : result === "NEVER"
-      ? "badge-never"
-      : "";
-
   return (
-    <div className="center">
-      <div className="form">
-        <h2>Notification Prioritization Engine</h2>
+    <div>
+      <input
+        placeholder="User ID"
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+      />
+      <input
+        placeholder="Type"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+      />
+      <textarea
+        placeholder="Message"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+      <select
+        value={priority}
+        onChange={(e) => setPriority(e.target.value)}
+      >
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+      </select>
 
-        <input
-          placeholder="User ID"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-        />
+      <button onClick={handleClassify}>Classify</button>
 
-        <input
-          placeholder="Event Type"
-          value={eventType}
-          onChange={(e) => setEventType(e.target.value)}
-        />
-
-        <textarea
-          placeholder="Message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-
-        <select
-          value={priorityHint}
-          onChange={(e) => setPriorityHint(e.target.value)}
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="critical">Critical</option>
-        </select>
-
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? "Classifying..." : "Classify"}
-        </button>
-
-        {result && (
-          <div className={`result ${badgeColor}`}>
-            Classification: <strong>{result}</strong>
-          </div>
-        )}
-      </div>
+      <h3>Classification: {result}</h3>
     </div>
   );
 }
